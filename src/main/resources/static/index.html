@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>𝔹ℝ𝔸ℍ𝕄𝔸𝕊𝕋ℝ𝔸</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stomp-websocket@2.3.4-next/lib/stomp.min.js"></script>
+    <style>
+        :root {
+            --primary-bg: #1a1a1a;
+            --secondary-bg: #2a2a2a;
+            --accent-color: #00ff9d;
+            --accent-gradient: linear-gradient(135deg, #00ff9d 0%, #00b8ff 100%);
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --error-color: #ff4444;
+            --success-color: #00C851;
+            --input-bg: #333333;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --button-hover: #00cc7d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background: var(--primary-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #app {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            width: 100%;
+            flex: 1;
+        }
+
+        .container {
+            background: var(--secondary-bg);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h2 {
+            font-size: 2em;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        button {
+            width: 30%;
+            padding: 14px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 16px;
+            transition: all 0.3s ease;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(0, 255, 157, 0.2);
+        }
+
+        button {
+            background: var(--accent-gradient);
+            border: none;
+            color: var(--primary-bg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 157, 0.3);
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .chat-container {
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            background: var(--secondary-bg);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.sent {
+            background: var(--accent-gradient);
+            color: var(--primary-bg);
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.received {
+            background: var(--input-bg);
+            color: var(--text-primary);
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message.system {
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            text-align: center;
+            align-self: center;
+            font-style: italic;
+            padding: 8px 16px;
+            border-radius: 20px;
+            max-width: 90%;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 12px;
+            background: var(--input-bg);
+            padding: 12px;
+            border-radius: 12px;
+        }
+
+        .chat-input input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            padding: 0;
+        }
+
+        .chat-input button {
+            width: auto;
+            padding: 12px 24px;
+            border-radius: 8px;
+        }
+
+        .status {
+            text-align: center;
+            padding: 12px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            margin: 15px 0;
+            animation: pulse 2s infinite;
+        }
+
+        .typing-indicator {
+            color: var(--text-secondary);
+            font-style: italic;
+            padding: 8px 16px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            margin: 5px 0;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .error {
+            color: var(--error-color);
+            text-align: center;
+            margin: 12px 0;
+            padding: 10px;
+            background: rgba(255, 68, 68, 0.1);
+            border-radius: 8px;
+        }
+
+        .success {
+            color: var(--success-color);
+            text-align: center;
+            margin: 12px 0;
+            padding: 10px;
+            background: rgba(0, 200, 81, 0.1);
+            border-radius: 8px;
+        }
+
+        .toggle-auth {
+            color: var(--accent-color);
+            text-align: center;
+            margin-top: 24px;
+            cursor: pointer;
+            text-decoration: underline;
+            transition: opacity 0.3s ease;
+        }
+
+        .toggle-auth:hover {
+            opacity: 0.8;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--secondary-bg);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--button-hover);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            #app {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            .chat-container {
+                height: calc(100vh - 200px);
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+
+        /* Connection status styles */
+        .status.connected {
+            color: var(--success-color);
+        }
+
+        .status.disconnected {
+            color: var(--error-color);
+        }
+
+        .status.connecting {
+            color: var(--accent-color);
+        }
+
+        /* Hidden class */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Debug panel */
+        .debug-panel {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: #00ff00;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-width: 400px;
+            max-height: 200px;
+            overflow: auto;
+            z-index: 9999;
+            display: none;
+        }
+
+        .debug-panel.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+<BR>
+<BR>
+<div id="app">
+    <div class="header">
+        <h2>𝔹ℝ𝔸ℍ𝕄𝔸𝕊𝕋ℝ𝔸</h2>
+        <p v-if="loggedIn">Welcome, {{ currentUser.username }}!</p>
+    </div>
+
+    <div class="container">
+        <!-- Auth Forms -->
+        <div v-if="!loggedIn">
+            <!-- Login Form -->
+            <div v-if="!showSignup">
+                <h2 class="text-center mb-4">𝕷𝖔𝖌𝖎𝖓</h2><br><br>
+                <div class="form-group">
+                    <input v-model="loginForm.username" placeholder="Username" required>
+                </div>
+                <div class="form-group">
+                    <input v-model="loginForm.password" type="password" placeholder="Password" required>
+                </div>
+                <button @click="login">Login</button>
+                <p class="error" v-if="loginError">{{ loginError }}</p>
+                <p class="toggle-auth" @click="toggleForm">Don't have an account? Sign up</p>
+            </div>
+
+            <!-- Signup Form -->
+            <div v-else>
+                <h2 class="text-center mb-4">𝕾𝖎𝖌𝖓 𝖀𝖕</h2><br><br>
+                <div class="form-group">
+                    <input v-model="signupForm.username" placeholder="Username" required>
+                </div>
+                <div class="form-group">
+                    <input v-model="signupForm.email" type="email" placeholder="Email" required>
+                </div>
+                <div class="form-group">
+                    <input v-model="signupForm.password" type="password" placeholder="Password" required>
+                </div>
+                <div class="form-group">
+                    <input v-model="signupForm.firstName" placeholder="First Name">
+                </div>
+                <div class="form-group">
+                    <input v-model="signupForm.lastName" placeholder="Last Name">
+                </div>
+                <div class="form-group">
+                    <input v-model="signupForm.dateOfBirth" type="date" placeholder="Date of Birth">
+                </div>
+                <div class="form-group">
+                    <select v-model="signupForm.gender">
+                        <option value="">Select Gender</option>
+                        <option value="MALE">Male</option>
+                        <option value="FEMALE">Female</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <input v-model="signupForm.country" placeholder="Country">
+                </div>
+                <div class="form-group">
+                    <input v-model="signupForm.interests" placeholder="Interests (comma separated)">
+                </div>
+                <button @click="signup">Sign Up</button>
+                <p class="error" v-if="signupError">{{ signupError }}</p>
+                <p class="toggle-auth" @click="toggleForm">Already have an account? Login</p>
+            </div>
+        </div>
+
+        <!-- Chat Interface -->
+        <div v-else>
+            <div class="status" :class="statusClass" v-if="connectionStatus">{{ connectionStatus }}</div>
+
+            <!-- Chat Controls -->
+            <div class="form-group" v-if="!chatting && !isSearching">
+                <button @click="startChat">Start Random Chat</button>
+            </div>
+            <div class="form-group" v-else>
+                <button @click="endChat" :disabled="isSearching && !chatting">
+                    {{ isSearching ? 'Cancel Search' : 'End Chat' }}
+                </button>
+            </div>
+
+            <!-- Chat Messages -->
+            <div class="chat-container" v-show="chatting || isSearching">
+                <div class="chat-messages" id="vue-chat-messages" ref="chatMessages">
+                    <div v-for="(msg, index) in messages" :key="index"
+                         :class="['message', msg.type === 'SYSTEM' ? 'system' : (msg.sent ? 'sent' : 'received')]">
+                        {{ msg.text }}
+                    </div>
+                    <div class="typing-indicator" v-if="isPartnerTyping">
+                        Stranger is typing...
+                    </div>
+                </div>
+                <div class="chat-input">
+                    <input v-model="newMessage"
+                           @keyup.enter="sendMessage"
+                           @input="sendTypingIndicator"
+                           placeholder="Type a message..."
+                           :disabled="!chatting">
+                    <button @click="sendMessage" :disabled="!chatting">Send</button>
+                </div>
+            </div>
+            <br>
+            <div class="form-group">
+                <button @click="logout" style="background-color: #ff4444;">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug Panel -->
+    <div class="debug-panel" :class="{ visible: showDebugPanel }">
+        <div v-for="(log, index) in debugLogs" :key="index">{{ log }}</div>
+    </div>
+</div>
+
+<script>
+    new Vue({
+        el: '#app',
+        data: {
+            showSignup: false,
+            loggedIn: false,
+            chatting: false,
+            isSearching: false,
+            stompClient: null,
+            messages: [],
+            newMessage: '',
+            currentUser: null,
+            partnerId: null,
+            connectionStatus: '',
+            isPartnerTyping: false,
+            typingTimeout: null,
+            reconnectAttempts: 0,
+            maxReconnectAttempts: 5,
+            loginForm: {
+                username: '',
+                password: ''
+            },
+            signupForm: {
+                username: '',
+                email: '',
+                password: '',
+                firstName: '',
+                lastName: '',
+                dateOfBirth: '',
+                gender: '',
+                country: '',
+                interests: ''
+            },
+            loginError: '',
+            signupError: '',
+            heartbeatInterval: null,
+            debug: true, // Enable debug mode
+            showDebugPanel: true, // Show debug panel
+            debugLogs: [], // Debug logs
+            lastMessageTime: 0,
+            lastMessageContent: ''
+        },
+        computed: {
+            statusClass() {
+                if (this.connectionStatus.includes('Connected to a stranger')) return 'connected';
+                if (this.connectionStatus.includes('disconnected')) return 'disconnected';
+                return 'connecting';
+            }
+        },
+        methods: {
+            addDebugLog(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                this.debugLogs.unshift(`[${timestamp}] ${message}`);
+                // Keep only the last 50 logs
+                if (this.debugLogs.length > 50) {
+                    this.debugLogs.pop();
+                }
+                console.log(message);
+            },
+            toggleForm() {
+                this.showSignup = !this.showSignup;
+                this.loginError = '';
+                this.signupError = '';
+            },
+            async login() {
+                try {
+                    const response = await axios.post('http://localhost:8080/api/auth/login', this.loginForm);
+                    if (response.data.token) {
+                        localStorage.setItem('token', response.data.token);
+                        this.currentUser = response.data.user;
+                        this.loggedIn = true;
+                        this.loginError = '';
+                        this.addDebugLog('Login successful: ' + JSON.stringify(this.currentUser));
+                    } else {
+                        this.loginError = response.data.message || 'Login failed';
+                        this.addDebugLog('Login failed: ' + this.loginError);
+                    }
+                } catch (error) {
+                    console.error('Login error:', error);
+                    this.loginError = error.response?.data?.message || 'Login failed. Please try again.';
+                    this.addDebugLog('Login error: ' + this.loginError);
+                }
+            },
+            async signup() {
+                try {
+                    const response = await axios.post('http://localhost:8080/api/auth/register', this.signupForm);
+                    if (response.data.success) {
+                        this.showSignup = false;
+                        this.signupError = '';
+                        alert('Registration successful! Please login.');
+                        this.addDebugLog('Registration successful');
+                    } else {
+                        this.signupError = response.data.message || 'Registration failed';
+                        this.addDebugLog('Registration failed: ' + this.signupError);
+                    }
+                } catch (error) {
+                    console.error('Signup error:', error);
+                    this.signupError = error.response?.data?.message || 'Registration failed. Please try again.';
+                    this.addDebugLog('Signup error: ' + this.signupError);
+                }
+            },
+            logout() {
+                localStorage.removeItem('token');
+                this.loggedIn = false;
+                this.currentUser = null;
+                this.endChat();
+                this.addDebugLog('User logged out');
+            },
+            startChat() {
+                this.isSearching = true;
+                this.connectionStatus = 'Looking for someone to chat with...';
+                this.messages = [];
+                this.messages.push({
+                    text: 'Looking for a stranger to chat with...',
+                    type: 'SYSTEM'
+                });
+                this.addDebugLog('Starting chat search');
+                this.connectWebSocket();
+            },
+            endChat() {
+                if (this.stompClient && this.stompClient.connected) {
+                    if (this.chatting && this.partnerId) {
+                        this.addDebugLog('Sending leave message to partner: ' + this.partnerId);
+                        this.stompClient.send("/app/chat.leave",
+                            {},
+                            JSON.stringify({
+                                senderId: this.currentUser.id,
+                                recipientId: this.partnerId,
+                                content: 'has disconnected',
+                                timestamp: new Date().toISOString(),
+                                type: 'LEAVE'
+                            })
+                        );
+                    } else if (this.isSearching) {
+                        this.addDebugLog('Cancelling search');
+                        this.stompClient.send("/app/chat.cancelSearch",
+                            {},
+                            JSON.stringify({
+                                senderId: this.currentUser.id,
+                                timestamp: new Date().toISOString(),
+                                type: 'CANCEL'
+                            })
+                        );
+                    }
+
+                    this.stompClient.disconnect();
+                    this.addDebugLog('WebSocket disconnected');
+                }
+
+                if (this.heartbeatInterval) {
+                    clearInterval(this.heartbeatInterval);
+                    this.heartbeatInterval = null;
+                }
+
+                this.chatting = false;
+                this.isSearching = false;
+                this.partnerId = null;
+                this.messages = [];
+                this.connectionStatus = '';
+                this.isPartnerTyping = false;
+                this.reconnectAttempts = 0;
+            },
+            connectWebSocket() {
+                const token = localStorage.getItem('token');
+                const socket = new SockJS('http://localhost:8080/chat');
+                this.stompClient = Stomp.over(socket);
+
+                // Enable debug logs
+                if (this.debug) {
+                    this.stompClient.debug = (msg) => {
+                        this.addDebugLog('STOMP: ' + msg);
+                    };
+                } else {
+                    this.stompClient.debug = null;
+                }
+
+                const headers = {
+                    'Authorization': `Bearer ${token}`
+                };
+
+                // Enhanced WebSocket connection with better error handling
+                this.stompClient.connect(headers, frame => {
+                    this.addDebugLog('Connected to WebSocket: ' + frame);
+                    this.reconnectAttempts = 0;
+                    this.connectionStatus = 'Connected to server';
+
+                    // Subscribe to messages with error handling
+                    try {
+                        // Subscribe to private messages queue
+                        this.stompClient.subscribe(`/user/${this.currentUser.id}/queue/messages`, message => {
+                            try {
+                                this.addDebugLog('Raw message received: ' + message.body);
+                                const messageData = JSON.parse(message.body);
+                                this.addDebugLog('Parsed message: ' + JSON.stringify(messageData));
+                                this.handlePrivateMessage(messageData);
+                            } catch (error) {
+                                this.addDebugLog('Error parsing message: ' + error + ', ' + message.body);
+                            }
+                        }, headers);
+
+                        // Send join message
+                        this.stompClient.send("/app/chat.join",
+                            headers,
+                            JSON.stringify({
+                                senderId: this.currentUser.id,
+                                content: 'User joined',
+                                timestamp: new Date().toISOString(),
+                                type: 'JOIN'
+                            })
+                        );
+                        this.addDebugLog('Join message sent');
+
+                        // Send initial search message
+                        this.addDebugLog('Sending search message for user: ' + this.currentUser.id);
+                        this.stompClient.send("/app/chat.findMatch",
+                            headers,
+                            JSON.stringify({
+                                senderId: this.currentUser.id,
+                                content: 'Looking for a match',
+                                timestamp: new Date().toISOString(),
+                                type: 'SEARCH'
+                            })
+                        );
+
+                        // Add heartbeat to keep connection alive
+                        this.heartbeatInterval = setInterval(() => {
+                            if (this.stompClient && this.stompClient.connected) {
+                                this.stompClient.send("/app/chat.heartbeat",
+                                    headers,
+                                    JSON.stringify({
+                                        senderId: this.currentUser.id,
+                                        timestamp: new Date().toISOString(),
+                                        type: 'HEARTBEAT'
+                                    })
+                                );
+                                this.addDebugLog('Heartbeat sent');
+                            }
+                        }, 30000); // Send heartbeat every 30 seconds
+
+                    } catch (error) {
+                        this.addDebugLog('Subscription error: ' + error);
+                        this.handleConnectionError();
+                    }
+                }, error => {
+                    this.addDebugLog('WebSocket connection error: ' + error);
+                    this.handleConnectionError();
+                });
+
+                socket.onerror = (error) => {
+                    this.addDebugLog('SockJS error: ' + error);
+                    this.handleConnectionError();
+                };
+            },
+            handleConnectionError() {
+                this.reconnectAttempts++;
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.connectionStatus = `Connection failed. Retrying... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`;
+                    this.addDebugLog('Connection failed. Retrying: ' + this.reconnectAttempts + '/' + this.maxReconnectAttempts);
+                    setTimeout(() => this.connectWebSocket(), 3000);
+                } else {
+                    this.isSearching = false;
+                    this.connectionStatus = 'Could not connect to server. Please try again later.';
+                    this.addDebugLog('Max reconnect attempts reached. Giving up.');
+                    setTimeout(() => {
+                        this.connectionStatus = '';
+                    }, 5000);
+                }
+            },
+            handlePrivateMessage(messageData) {
+                this.addDebugLog('Processing message: ' + JSON.stringify(messageData));
+
+                // Check if the message has a type property
+                if (!messageData.type) {
+                    this.addDebugLog('Message missing type property: ' + JSON.stringify(messageData));
+                    return;
+                }
+
+                // Check for duplicate messages
+                const now = Date.now();
+                if (now - this.lastMessageTime < 500 &&
+                    messageData.content === this.lastMessageContent &&
+                    messageData.type === 'CHAT') {
+                    this.addDebugLog('Ignoring duplicate message');
+                    return;
+                }
+                this.lastMessageTime = now;
+                this.lastMessageContent = messageData.content;
+
+                // Log the message type for debugging
+                this.addDebugLog('Message type: ' + messageData.type);
+
+                switch (messageData.type) {
+                    case 'MATCH':
+                        this.addDebugLog('Match found with user: ' + messageData.senderId);
+                        this.partnerId = messageData.senderId;
+                        this.chatting = true;
+                        this.isSearching = false;
+                        this.connectionStatus = 'Connected to a stranger!';
+
+                        // Clear previous messages and add the system message
+                        this.messages = [{
+                            text: 'You are now chatting with a stranger. Say hi!',
+                            type: 'SYSTEM'
+                        }];
+
+                        // Force UI update
+                        this.$forceUpdate();
+
+                        // Scroll to bottom
+                        this.$nextTick(() => {
+                            const chatMessages = document.getElementById('vue-chat-messages');
+                            if (chatMessages) {
+                                chatMessages.scrollTop = chatMessages.scrollHeight;
+                            }
+                        });
+                        break;
+
+                    case 'CHAT':
+                        if (messageData.senderId !== this.currentUser.id) {
+                            // If we're not already chatting with this user, force a match
+                            if (!this.chatting || this.partnerId !== messageData.senderId) {
+                                this.addDebugLog('Forcing match with user: ' + messageData.senderId);
+                                this.partnerId = messageData.senderId;
+                                this.chatting = true;
+                                this.isSearching = false;
+                                this.connectionStatus = 'Connected to a stranger!';
+
+                                // Only add the system message if we don't have messages yet
+                                if (this.messages.length === 0 ||
+                                    (this.messages.length === 1 && this.messages[0].text === 'Looking for a stranger to chat with...')) {
+                                    this.messages = [{
+                                        text: 'You are now chatting with a stranger. Say hi!',
+                                        type: 'SYSTEM'
+                                    }];
+                                }
+                            }
+
+                            this.messages.push({
+                                text: messageData.content,
+                                sent: false
+                            });
+
+                            // Scroll to bottom
+                            this.$nextTick(() => {
+                                const chatMessages = document.getElementById('vue-chat-messages');
+                                if (chatMessages) {
+                                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                                }
+                            });
+                        }
+                        break;
+
+                    case 'TYPING':
+                        if (messageData.senderId === this.partnerId) {
+                            this.isPartnerTyping = true;
+                            clearTimeout(this.typingTimeout);
+                            this.typingTimeout = setTimeout(() => {
+                                this.isPartnerTyping = false;
+                            }, 2000);
+                        }
+                        break;
+
+                    case 'LEAVE':
+                        if (messageData.senderId === this.partnerId) {
+                            this.messages.push({
+                                text: 'Stranger has disconnected.',
+                                type: 'SYSTEM'
+                            });
+                            this.connectionStatus = 'Stranger disconnected. Start a new chat to continue.';
+                            this.chatting = false;
+                            this.partnerId = null;
+                        }
+                        break;
+
+                    case 'SYSTEM':
+                        this.messages.push({
+                            text: messageData.content,
+                            type: 'SYSTEM'
+                        });
+                        break;
+
+                    case 'SEARCH_FAILED':
+                        this.isSearching = false;
+                        this.connectionStatus = 'Could not find anyone to chat with. Please try again.';
+                        this.messages = [{
+                            text: 'No one is available right now. Try again later.',
+                            type: 'SYSTEM'
+                        }];
+                        break;
+
+                    default:
+                        this.addDebugLog('Unhandled message type: ' + messageData.type);
+                        break;
+                }
+
+                // Force UI update
+                this.$forceUpdate();
+            },
+            sendMessage() {
+                if (this.newMessage.trim()) {
+                    // If we're not chatting but have a partner ID, enable chatting
+                    if (!this.chatting && this.partnerId) {
+                        this.chatting = true;
+                        this.isSearching = false;
+                    }
+
+                    if (this.stompClient && this.stompClient.connected && this.partnerId) {
+                        const chatMessage = {
+                            content: this.newMessage,
+                            senderId: this.currentUser.id,
+                            recipientId: this.partnerId,
+                            timestamp: new Date().toISOString(),
+                            type: 'CHAT'
+                        };
+
+                        this.addDebugLog('Sending message: ' + JSON.stringify(chatMessage));
+
+                        try {
+                            this.stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
+
+                            this.messages.push({
+                                text: this.newMessage,
+                                sent: true
+                            });
+
+                            this.newMessage = '';
+                            this.isPartnerTyping = false;
+
+                            // Scroll to bottom
+                            this.$nextTick(() => {
+                                const chatMessages = document.getElementById('vue-chat-messages');
+                                if (chatMessages) {
+                                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                                }
+                            });
+                        } catch (error) {
+                            this.addDebugLog('Error sending message: ' + error);
+                            alert('Failed to send message. Please try again.');
+                        }
+                    } else {
+                        this.addDebugLog('Cannot send message: not connected or no partner');
+                        alert('Cannot send message: not connected to a chat partner');
+                    }
+                }
+            },
+            sendTypingIndicator() {
+                if (this.stompClient && this.chatting && this.partnerId && this.stompClient.connected) {
+                    try {
+                        this.stompClient.send("/app/chat.typing",
+                            {},
+                            JSON.stringify({
+                                senderId: this.currentUser.id,
+                                recipientId: this.partnerId,
+                                timestamp: new Date().toISOString(),
+                                type: 'TYPING'
+                            })
+                        );
+                    } catch (error) {
+                        this.addDebugLog('Error sending typing indicator: ' + error);
+                    }
+                }
+            },
+            toggleDebugPanel() {
+                this.showDebugPanel = !this.showDebugPanel;
+            }
+        },
+        mounted() {
+            // Add keyboard shortcut for debug panel
+            window.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                    this.toggleDebugPanel();
+                }
+            });
+
+            const token = localStorage.getItem('token');
+            if (token) {
+                axios.get('http://localhost:8080/api/auth/user', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                    .then(response => {
+                        this.currentUser = response.data;
+                        this.loggedIn = true;
+                        this.addDebugLog('User authenticated: ' + JSON.stringify(this.currentUser));
+                    })
+                    .catch(() => {
+                        localStorage.removeItem('token');
+                        this.addDebugLog('Authentication failed, token removed');
+                    });
+            }
+        },
+        beforeDestroy() {
+            // Clean up heartbeat interval
+            if (this.heartbeatInterval) {
+                clearInterval(this.heartbeatInterval);
+            }
+
+            // Disconnect WebSocket if connected
+            if (this.stompClient && this.stompClient.connected) {
+                this.stompClient.disconnect();
+            }
+        }
+    });
+</script>
+</body>
+</html>
+
