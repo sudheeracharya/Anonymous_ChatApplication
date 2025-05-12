@@ -1,4 +1,4 @@
-# Omegle Clone Chat Application
+# Anonymous Chat Application
 
 A real-time chat application built with Spring Boot that allows users to connect and chat with random strangers, similar to Omegle.
 
